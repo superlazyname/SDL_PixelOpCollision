@@ -245,19 +245,12 @@ void DoMultiply(const IntVec2_t playerPosition)
     SDL_SetRenderTarget(SDLGlobals.Renderer, NULL);
 }
 
-static int Old_HasCollided(const IntVec2_t playerPosition)
+int HasCollided(const IntVec2_t playerPosition)
 {
     DoMultiply(playerPosition);
 
     void* pixelReadingTexturePixels = NULL;
     int pitch = 0;
-
-    // old method: unfortunately this isn't too good because I can't think of a way
-    // to get the pixels out of a non-streaming texture.
-    // any white pixel in MultiplyTexture will be considered a collision
-
-    //SDL_SetRenderTarget(SDLGlobals.Renderer, PixelReadingTexture);
-    //SDL_RenderCopy(SDLGlobals.Renderer, MultiplyTexture, NULL, NULL);
 
     const int lockErrorCode = SDL_LockTexture(PixelReadingTexture, NULL, &pixelReadingTexturePixels, &pitch);
 
@@ -276,9 +269,16 @@ static int Old_HasCollided(const IntVec2_t playerPosition)
     bugWorkaround_Dest.y = 0;
 
     SDL_SetRenderTarget(SDLGlobals.Renderer, MultiplyTexture);
+
+    const Uint32 beforeReadTics = SDL_GetTicks();
+
     // how slow is this?
+    // about 15 ms. No good.
     SDL_RenderReadPixels(SDLGlobals.Renderer, &bugWorkaround_Dest, SDL_PIXELFORMAT_RGBA8888, pixelReadingTexturePixels, pitch);
 
+    const Uint32 afterReadTics = SDL_GetTicks();
+
+    const Uint32 readTime = afterReadTics - beforeReadTics;
 
     const uint32_t* const pixels = (uint32_t*) pixelReadingTexturePixels;
 
@@ -286,6 +286,7 @@ static int Old_HasCollided(const IntVec2_t playerPosition)
 
     int hasCollided = 0;
 
+    // any white pixel in MultiplyTexture will be considered a collision
     int pixelIndex = 0;
     for(pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++)
     {
@@ -304,64 +305,6 @@ static int Old_HasCollided(const IntVec2_t playerPosition)
 
     return hasCollided;
 }
-
-int HasCollided(const IntVec2_t playerPosition)
-{
-    return Old_HasCollided(playerPosition);
-
-    #if 0
-
-    DoMultiply(playerPosition);
-
-    void* multiplyPixels = NULL;
-    int pitch = 0;
-
-    // the docs say this method is "very slow", what is "very slow"? Too slow for a 32x32 image?
-    SDL_RenderReadPixels(SDLGlobals.Renderer, NULL, 0, &multiplyPixels, &pitch);
-
-    // old method: unfortunately this isn't too good because I can't think of a way
-    // to get the pixels out of a non-streaming texture.
-
-
-    // any white pixel in MultiplyTexture will be considered a collision
-
-    SDL_SetRenderTarget(SDLGlobals.Renderer, PixelReadingTexture);
-    SDL_RenderCopy(SDLGlobals.Renderer, MultiplyTexture, NULL, NULL);
-
-    const int lockErrorCode = SDL_LockTexture(PixelReadingTexture, NULL, &multiplyPixels, &pitch);
-
-    if(lockErrorCode != 0)
-    {
-        printf("Unable to lock multiply texture: %s\n", SDL_GetError());
-        return 0;
-    }
-
-    const uint32_t* const pixels = (uint32_t*) multiplyPixels;
-
-    const int pixelCount = pitch * PlayerImageSize.Y;
-
-    int hasCollided = 0;
-
-    int pixelIndex = 0;
-    for(pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++)
-    {
-        const uint32_t pixelValue = pixels[pixelIndex];
-
-        if(pixelValue == 0xFFFFFFFF)
-        {
-            hasCollided = 1;
-            break;
-        }
-    }
-
-
-
-    return hasCollided;
-
-    #endif
-    
-}
-
 
 
 
